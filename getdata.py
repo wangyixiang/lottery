@@ -1,3 +1,9 @@
+"""
+我还发现在
+http://kaijiang.zhcw.com/zhcw/html/ssq/list.html
+既然有完整的双色球历史，
+但是，其数据的易拿性和易提取性还是比不上17500.cn
+"""
 import httplib
 import os
 
