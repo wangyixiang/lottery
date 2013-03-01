@@ -1,8 +1,12 @@
+# -*- coding: utf-8 -*-
 """
-�һ�������
+我还发现在
 http://kaijiang.zhcw.com/zhcw/html/ssq/list.html
-��Ȼ��������˫ɫ����ʷ��
-���ǣ������ݵ������Ժ�����ȡ�Ի��ǱȲ���17500.cn
+既然有完整的双色球历史，
+在
+http://www.lottery.gov.cn/lottery/dlt/History.aspx
+也有完整的大乐透历史数据。
+但是，其数据的易拿性和易提取性还是比不上17500.cn
 """
 import httplib
 import os
