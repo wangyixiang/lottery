@@ -378,7 +378,118 @@ class DltDataAnalyze(DataAnalyze):
             nextdrawstr.rstrip()
             if self.condition_test(nextdrawstr):
                 return nextdrawstr
-
+    def my01_get_next_draw(self,latest=None):
+        """
+        1.我们可以统计历史数据的各个数的出现次数， 并且我们可以求出按照理想概率
+        模型每个数应该出现的次数，红球为 总次数 / 7 为理想红球概率次数，而蓝球的
+        为 总次数 / 6 为理想蓝球概率次数， 我们淘汰次数低于理想概率25%的球；
+        2.利用历史重复概率统计，如下：
+        883次 
+        {'b0': 718, 'b1': 161, 'b2': 3, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 384, 'r1': 366, 'r2': 120, 'r3': 11}
+        {'b0': 600, 'b1': 249, 'b2': 32, 'r4': 33, 'r5': 8, 'r6': 0, 'r7': 0, 'r0': 164, 'r1': 314, 'r2': 254, 'r3': 108}
+        400次
+        {'b0': 334, 'b1': 63, 'b2': 2, 'r4': 0, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 169, 'r1': 166, 'r2': 60, 'r3': 4}
+        {'b0': 276, 'b1': 109, 'b2': 13, 'r4': 17, 'r5': 4, 'r6': 0, 'r7': 0, 'r0': 70, 'r1': 149, 'r2': 106, 'r3': 52}
+        蓝球的重复几率基本在 718/883=0.813 600/883=0.679 334/400=0.835 276/400=0.69
+        利用这个规律，可以剔除2或者4个蓝球
+        3.根据历史统计，凡是历史上出现过的组合，重来没有重复过，这样又可以剔除余下总组合数中的历史总和数
+        这样获得的组合数仍然有几十万，哈哈，不过比2000多万好多了，就是个乐趣。
+        """
+        idearedrate = 1 / 7.
+        ideabluerate = 1 / 6.
+        historydraws = self.drawlist[:latest]
+        redthreshold = int(len(historydraws) * idearedrate * 0.75)
+        bluethreshold = int(len(historydraws) * ideabluerate * 0.75)
+        eachcount = self.history_counts_of_each(historydraws)
+        for key in eachcount.keys():
+            if key[0] == 'b':
+                if eachcount[key] <= bluethreshold:
+                    eachcount.pop(key)
+            if key[0] == 'r':
+                if eachcount[key] <= redthreshold:
+                    eachcount.pop(key)
+        erbl, ebbl = self._get_exclude_ball(historydraws,2)
+        erbl, delebbl = self._get_exclude_ball(historydraws,1)
+        del delebbl
+        for ebb in ebbl:
+            try:
+                eachcount.pop('b' + ebb)
+            except:
+                pass
+        cerbl = []
+        cebbl = []
+        for key in eachcount.keys():
+            if key[0] == 'b':
+                if int(key[1:]) < 10:
+                    cebbl.append(key[1:])
+                else:
+                    cebbl.append(key[1:])
+            if key[0] == 'r':
+                if int(key[1:]) < 10:
+                    cerbl.append(key[1:])
+                else:
+                    cerbl.append(key[1:])
+        for longest in ['06', '10', '12']:
+            if longest in cebbl:
+                cebbl.remove(longest)
+        
+        bbnums = len(cebbl)
+        bbcombl = []
+        cebbllen = len(cebbl)
+        for bbindex1 in range(cebbllen - 1):
+            for bbindex2 in range(bbindex1 + 1, cebbllen ):
+                bbcomb = [cebbl[bbindex1], cebbl[bbindex2]]
+                bbcomb.sort()
+                bbcombl.append(bbcomb[0] + ' ' + bbcomb[1])
+        
+        rbcombs = len(bbcombl) - 5
+        random.shuffle(bbcombl)
+        
+        for erb in erbl:
+            try:
+                cerbl.remove(erb)
+            except:
+                pass
+            
+        nextdraws = []
+        i = 0
+        while len(nextdraws) < rbcombs:
+            random.shuffle(cerbl)
+            for j in range(len(cerbl) / self.rednumber):
+                rnextdraw = cerbl[(self.rednumber * j) : (self.rednumber * ( j + 1))]
+                nextdraw = ''
+                rnextdraw.sort()
+                for rb in rnextdraw:
+                    nextdraw = nextdraw + rb + ' '
+                nextdraw = nextdraw + bbcombl[i]
+                if self.condition_test(nextdraw):
+                    nextdraws.append(nextdraw)
+                    i += 1
+                if len(nextdraws) == rbcombs:
+                    break
+        ii = 0
+        while len(nextdraws) < len(bbcombl):
+            random.shuffle(cerbl)
+            for jj in range(len(cerbl) / (self.rednumber - 1)):
+                rnextdraw = cerbl[(self.rednumber-1)*jj : (self.rednumber-1) * (jj + 1)]
+                rnextdraw.append(erbl[ii])
+                rnextdraw.sort()
+                nextdraw = ''
+                for rb in rnextdraw:
+                    nextdraw = nextdraw + rb + ' '
+                nextdraw = nextdraw + bbcombl[i]
+                if self.condition_test(nextdraw):
+                    nextdraws.append(nextdraw)
+                    i += 1
+                    ii += 1
+                if len(nextdraws) == len(bbcombl):
+                    break        
+        a = len(cerbl)
+        b = len(cebbl)
+        print ((a * (a - 1) * (a - 2) * (a-3) * (a - 4) / 120) + \
+                (a * (a - 1) * (a - 2) * (a-3) / 24))* (b * (b - 1) /2)     
+        return nextdraws
+        
     
 class SsqDataAnalyze(DataAnalyze):
     MINBLUEBALL=1
