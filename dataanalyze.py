@@ -730,6 +730,169 @@ class SsqDataAnalyze(DataAnalyze):
                                 passedcombnums += 1
         return combnums, passedcombnums
         
+    def my03_get_next_draw(self, latest=None):
+        """
+        1.我们可以统计历史数据的各个数的出现次数， 并且我们可以求出按照理想概率
+        模型每个数应该出现的次数，红球为 总次数 * 6 / 33 为理想红球概率次数，而蓝球的
+        为 总次数 / 16 为理想蓝球概率次数， 我们淘汰次数低于理想概率25%的球；
+        2.利用历史重复概率统计，如下：
+        1461次 
+        {'b0': 1356, 'b1': 105, 'b2': 0, 'r4': 7, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 401, 'r1': 634, 'r2': 354, 'r3': 65}
+        {'b0': 1271, 'b1': 184, 'b2': 5, 'r4': 121, 'r5': 14, 'r6': 0, 'r7': 0, 'r0': 96, 'r1': 375, 'r2': 540, 'r3': 314}
+        {'b0': 1189, 'b1': 245, 'b2': 25, 'r4': 270, 'r5': 94, 'r6': 7, 'r7': 0, 'r0': 22, 'r1': 169, 'r2': 395, 'r3': 502}
+
+        400次
+        {'b0': 367, 'b1': 32, 'b2': 0, 'r4': 2, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 109, 'r1': 172, 'r2': 102, 'r3': 14}
+        {'b0': 339, 'b1': 57, 'b2': 2, 'r4': 31, 'r5': 3, 'r6': 0, 'r7': 0, 'r0': 29, 'r1': 95, 'r2': 152, 'r3': 88}
+        {'b0': 320, 'b1': 66, 'b2': 11, 'r4': 74, 'r5': 28, 'r6': 2, 'r7': 0, 'r0': 9, 'r1': 42, 'r2': 108, 'r3': 134}
+        蓝球的重复几率基本在 1356/1461=0.928 1271/1461=0.869 1189/1461=0.813 367/400=0.917 339/400=0.8457 320/400=0.8
+        利用这个规律，可以剔除2或者4个蓝球
+        3.根据历史统计，凡是历史上出现过的组合，重来没有重复过，这样又可以剔除余下总组合数中的历史总和数
+        这样获得的组合数仍然有几十万，哈哈，不过比2000多万好多了，就是个乐趣。
+        """
+        
+        historydraws = self.drawlist[:latest]
+        idearedrate = 6. / self.MAXREDBALL
+        ideabluerate = 1. / self.MAXBLUEBALL
+        redthreshold = int(len(historydraws) * idearedrate * 0.80)
+        bluethreshold = int(len(historydraws) * ideabluerate * 0.80)
+        redmissthreshold = 11
+        bluemisstheshold = 16 * 2
+        eachcount = self.history_counts_of_each(historydraws)
+        for key in eachcount.keys():
+            if key[0] == 'b':
+                if eachcount[key] <= bluethreshold:
+                    eachcount.pop(key)
+            if key[0] == 'r':
+                if eachcount[key] <= redthreshold:
+                    eachcount.pop(key)
+        erbl, ebbl = self._get_exclude_ball(historydraws,2)
+        erbl, delebbl = self._get_exclude_ball(historydraws,1)
+        del delebbl
+        for ebb in ebbl:
+            try:
+                eachcount.pop('b' + ebb)
+            except:
+                pass
+        cerbl = []
+        cebbl = []
+        for key in eachcount.keys():
+            if key[0] == 'b':
+                if int(key[1:]) < 10:
+                    cebbl.append(key[1:])
+                else:
+                    cebbl.append(key[1:])
+            if key[0] == 'r':
+                if int(key[1:]) < 10:
+                    cerbl.append(key[1:])
+                else:
+                    cerbl.append(key[1:])
+        longredmissballl, longbluemissball = self.history_get_miss_of_each()
+        cerbl.sort()
+        #python list实现可能有bug，下面这段代码不会引用最后一个element in cerbl
+        #特地注释这里
+        #for rball in cerbl:       
+            #print rball
+            #if longredmissballl[int(rball)] >= redmissthreshold:
+                #cerbl.remove(rball)        
+        for rball in cerbl:       
+            if longredmissballl[int(rball) - 1] >= redmissthreshold:
+                cerbl.remove(rball)
+        for bball in cebbl:
+            if longbluemissball[int(bball) - 1] >= bluemisstheshold:
+                cebbl.remove(bball)
+        
+        for erb in erbl:
+            if not (erb in cerbl):
+                erbl.remove(erb)
+ 
+        er2bcombl = []
+        erbllen = len(erbl)
+        for rrindex1 in range(erbllen - 1):
+            for rrindex2 in range(rrindex1 + 1, erbllen ):
+                er2bcombl.append([erbl[rrindex1], erbl[rrindex2]])
+        
+        random.shuffle(er2bcombl)
+        
+        for erb in erbl:
+            try:
+                cerbl.remove(erb)
+            except:
+                pass
+        random.shuffle(cebbl)
+        cebbllen = len(cebbl)
+        nextdraws = []
+        i = 0
+        jj = 0
+        a = len(cerbl)
+        b = len(cebbl)
+        totalcombs = (a * (a-1) * (a-2) * (a-3) / (4 * 3 * 2 *1)) * len(er2bcombl) * b
+        print totalcombs
+        while len(nextdraws) < len(er2bcombl):
+            random.shuffle(cerbl)
+            for j in range(len(cerbl) / (self.rednumber - 2)):
+                rnextdraw = cerbl[((self.rednumber - 2) * j) : ((self.rednumber - 2) * ( j + 1))]
+                nextdraw = ''
+                rnextdraw += er2bcombl[i]
+                rnextdraw.sort()
+                for rb in rnextdraw:
+                    nextdraw = nextdraw + rb + ' '
+                nextdraw = nextdraw + cebbl[jj]
+                if self.condition_test(nextdraw):
+                    nextdraws.append(nextdraw)
+                    i += 1
+                    jj += 1
+                if jj >= len(cebbl):
+                    jj = 0
+                    random.shuffle(cebbl)                
+                if len(nextdraws) == len(er2bcombl):
+                    break
+        i = 0
+        totalcombs += (a * (a-1) * (a-2) * (a-3) * (a-4) / (5*4*3*2*1)) * len(erbl) * b
+        print totalcombs
+        while len(nextdraws) < len(er2bcombl) + len(erbl):
+            random.shuffle(cerbl)
+            for j in range(len(cerbl) / (self.rednumber - 1)):
+                rnextdraw = cerbl[((self.rednumber - 1) * j) : ((self.rednumber - 1) * ( j + 1))]
+                nextdraw = ''
+                rnextdraw += [erbl[i]]
+                rnextdraw.sort()
+                for rb in rnextdraw:
+                    nextdraw = nextdraw + rb + ' '
+                nextdraw = nextdraw + cebbl[jj]
+                if self.condition_test(nextdraw):
+                    nextdraws.append(nextdraw)
+                    i += 1
+                    jj += 1
+                if jj >= len(cebbl):
+                    jj = 0
+                    random.shuffle(cebbl)                
+                if len(nextdraws) == len(er2bcombl) + len(erbl):
+                    break
+                
+        totalcombs += (a*(a-1)*(a-2)*(a-3)*(a-4)*(a-5)/ (6*5*4*3*2*1)) * b
+        i = 0
+        while len(nextdraws) < len(er2bcombl) + len(erbl) + 5:
+            random.shuffle(cerbl)
+            for j in range(len(cerbl) / (self.rednumber)):
+                rnextdraw = cerbl[(self.rednumber * j) : (self.rednumber * ( j + 1))]
+                nextdraw = ''
+                rnextdraw.sort()
+                for rb in rnextdraw:
+                    nextdraw = nextdraw + rb + ' '
+                nextdraw = nextdraw + cebbl[jj]
+                if self.condition_test(nextdraw):
+                    nextdraws.append(nextdraw)
+                    i += 1
+                    jj += 1
+                if jj >= len(cebbl):
+                    jj = 0
+                    random.shuffle(cebbl)                
+                if len(nextdraws) == len(er2bcombl) + len(erbl) + 5:
+                    break
+        print totalcombs
+        return nextdraws        
+        
 def next_lottery_draw(kind, num=1):
     lotterygenerator = None
     if kind == DataFetcher.TYPEDLT:
@@ -772,6 +935,7 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
 
 if __name__ == '__main__':
     ssq = SsqDataAnalyze()
-    rm, bm = ssq.history_get_miss_of_each()
-    print rm
-    print bm
+    draws = ssq.my03_get_next_draw(latest=400)
+    for draw in draws:
+        r1,b1= draw.rsplit(None,1)
+        print r1 + '+' + b1
