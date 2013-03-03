@@ -398,8 +398,10 @@ class DltDataAnalyze(DataAnalyze):
         idearedrate = 1 / 7.
         ideabluerate = 1 / 6.
         historydraws = self.drawlist[:latest]
-        redthreshold = int(len(historydraws) * idearedrate * 0.75)
-        bluethreshold = int(len(historydraws) * ideabluerate * 0.75)
+        redthreshold = int(len(historydraws) * idearedrate * 0.8)
+        bluethreshold = int(len(historydraws) * ideabluerate * 0.8)
+        redmissthreshold = 7 * 2
+        bluemisstheshold = 6 * 2        
         eachcount = self.history_counts_of_each(historydraws)
         for key in eachcount.keys():
             if key[0] == 'b':
@@ -429,10 +431,13 @@ class DltDataAnalyze(DataAnalyze):
                     cerbl.append(key[1:])
                 else:
                     cerbl.append(key[1:])
-        for longest in ['06', '10', '12']:
-            if longest in cebbl:
-                cebbl.remove(longest)
-        
+        longredmiss, longbluemiss = self.history_get_miss_of_each()
+        for bball in cebbl:
+            if longbluemiss[int(bball) - 1] >= bluemisstheshold:
+                cebbl.remove(bball)
+        for rball in cerbl:
+            if longredmiss[int(rball) - 1] >= redmissthreshold:
+                cerbl.remove(rball)
         bbnums = len(cebbl)
         bbcombl = []
         cebbllen = len(cebbl)
