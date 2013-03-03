@@ -262,6 +262,45 @@ class DataAnalyze(object):
             i += 1
         return repeat_rate
     
+    def history_get_miss_of_each(self):
+        redmiss = []
+        bluemiss = []
+        for rball in range(1, self.MAXREDBALL + 1):
+            if rball < 10:
+                rball = '0' + str(rball)
+            else:
+                rball = str(rball)
+            while True:
+                found = False
+                misstime = 0
+                for adraws in self.drawlist:
+                    rballlist = adraws[1].split()[:self.rednumber]
+                    if rball in rballlist:
+                        found = True
+                        break
+                    misstime += 1
+                if found:
+                    redmiss.append(misstime)
+                    break
+        for bball in range(1, self.MAXBLUEBALL + 1):
+            if bball < 10:
+                bball = '0' + str(bball)
+            else:
+                bball = str(bball)
+            while True:
+                found = False
+                misstime = 0
+                for adraws in self.drawlist:
+                    bballlist = adraws[1].split()[self.rednumber:]
+                    if bball in bballlist:
+                        found = True
+                        break
+                    misstime += 1
+                if found:
+                    bluemiss.append(misstime)
+                    break
+        return [redmiss, bluemiss]
+    
     def get_red_and_blue_sum(self, adrawstr):
         redsum = 0
         bluesum = 0
@@ -622,10 +661,6 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
 
 if __name__ == '__main__':
     ssq = SsqDataAnalyze()
-    import cProfile
-    cProfile.run('combs, passedcombs = ssq.howmany_satisify_my02()','profiledata')
-    print combs
-    print passedcombs
-    import pstats
-    p = pstats.Stats('profiledata')
-    p.print_stats()
+    rm, bm = ssq.history_get_miss_of_each()
+    print rm
+    print bm
