@@ -301,6 +301,34 @@ class DataAnalyze(object):
                     break
         return [redmiss, bluemiss]
     
+    def history_counts_of_odd_and_even(self,latest=None):
+        historydraws = self.drawlist[:latest]
+        redhistory = {}
+        bluehistory = {}
+        for i in range(self.rednumber + 1):
+            redhistory['e' + str(i)] = 0
+        for j in range(self.bluenumber + 1):
+            bluehistory['e' + str(j)] = 0
+        
+        for draw in historydraws:
+            balls = draw[1].split()
+            ri = 0
+            for ball in balls[:self.rednumber]:
+                if int(ball) % 2 == 0:
+                    ri += 1
+            redhistory['e' + str(ri)] += 1
+            bi = 0
+            for ball in balls[self.rednumber:]:
+                if int(ball) % 2 == 0:
+                    bi += 1
+            bluehistory['e' + str(bi)] += 1
+        
+        redhistory = redhistory.items()
+        bluehistory = bluehistory.items()
+        redhistory.sort(key=lambda ball:ball[1])
+        bluehistory.sort(key=lambda ball:ball[1])
+        return redhistory, bluehistory
+    
     def get_red_and_blue_sum(self, adrawstr):
         redsum = 0
         bluesum = 0
@@ -315,9 +343,12 @@ class DataAnalyze(object):
         return redsum, bluesum
     
     def condition_test(self, adrawstr):
+        
+        #当然发生过的是不会在发生了
         if self.happen_before(adrawstr):
             return False
         
+        #和值当然不应该超过最大和值和小于最小和值
         if self.rbmm == None:
             self.history_get_max_and_min()
         redsum, bluesum = self.get_red_and_blue_sum(adrawstr)
@@ -325,6 +356,17 @@ class DataAnalyze(object):
             return False
         if not ( bluesum<=self.rbmm[2] and bluesum>=self.rbmm[3] ):
             return False
+
+        #还有就是奇偶分布，全奇数和全偶肯定是小事件，我还发现在近期的大乐透，
+        #4偶也是极小事件。
+        if self.rednumber == 5:
+            nlist = adrawstr.split()
+            revencount = 0
+            for n in nlist[:self.rednumber]:
+                if int(n) % 2 == 0:
+                    revencount += 1
+            if revencount in (0, 4, 5):
+                return False
         
         return True
                 
@@ -940,7 +982,8 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
 
 if __name__ == '__main__':
     ssq = SsqDataAnalyze()
-    draws = ssq.my03_get_next_draw(latest=400)
-    for draw in draws:
-        r1,b1= draw.rsplit(None,1)
-        print r1 + '+' + b1
+    reh,beh = ssq.history_counts_of_odd_and_even(latest=400)
+    dlt = DltDataAnalyze()
+    reh, beh = dlt.history_counts_of_odd_and_even(latest=100)
+    print reh
+    print beh
