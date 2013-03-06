@@ -301,6 +301,34 @@ class DataAnalyze(object):
                     break
         return [redmiss, bluemiss]
     
+    def history_counts_of_odd_and_even(self,latest=None):
+        historydraws = self.drawlist[:latest]
+        redhistory = {}
+        bluehistory = {}
+        for i in range(self.rednumber + 1):
+            redhistory['e' + str(i)] = 0
+        for j in range(self.bluenumber + 1):
+            bluehistory['e' + str(j)] = 0
+        
+        for draw in historydraws:
+            balls = draw[1].split()
+            ri = 0
+            for ball in balls[:self.rednumber]:
+                if int(ball) % 2 == 0:
+                    ri += 1
+            redhistory['e' + str(ri)] += 1
+            bi = 0
+            for ball in balls[self.rednumber:]:
+                if int(ball) % 2 == 0:
+                    bi += 1
+            bluehistory['e' + str(bi)] += 1
+        
+        redhistory = redhistory.items()
+        bluehistory = bluehistory.items()
+        redhistory.sort(key=lambda ball:ball[1])
+        bluehistory.sort(key=lambda ball:ball[1])
+        return redhistory, bluehistory
+    
     def get_red_and_blue_sum(self, adrawstr):
         redsum = 0
         bluesum = 0
@@ -315,9 +343,12 @@ class DataAnalyze(object):
         return redsum, bluesum
     
     def condition_test(self, adrawstr):
+        
+        #当然发生过的是不会在发生了
         if self.happen_before(adrawstr):
             return False
         
+        #和值当然不应该超过最大和值和小于最小和值
         if self.rbmm == None:
             self.history_get_max_and_min()
         redsum, bluesum = self.get_red_and_blue_sum(adrawstr)
@@ -325,6 +356,58 @@ class DataAnalyze(object):
             return False
         if not ( bluesum<=self.rbmm[2] and bluesum>=self.rbmm[3] ):
             return False
+
+        #还有就是奇偶分布，全奇数和全偶肯定是小事件，我还发现在近期的大乐透，
+        #4偶也是极小事件。
+        
+        """
+        [('e5', 0), ('e0', 3), ('e4', 4), ('e1', 30), ('e2', 31), ('e3', 32)]
+        [('e2', 20), ('e0', 24), ('e1', 56)]
+        
+        [('e5', 3), ('e0', 8), ('e4', 15), ('e1', 41), ('e3', 61), ('e2', 72)]
+        [('e2', 40), ('e0', 43), ('e1', 117)]
+        
+        [('e5', 5), ('e0', 9), ('e4', 26), ('e1', 63), ('e3', 88), ('e2', 109)]
+        [('e0', 64), ('e2', 66), ('e1', 170)]
+        
+        [('e5', 7), ('e0', 12), ('e4', 35), ('e1', 82), ('e3', 126), ('e2', 138)]
+        [('e0', 84), ('e2', 95), ('e1', 221)]
+        
+        [('e5', 11), ('e0', 28), ('e4', 99), ('e1', 160), ('e3', 264), ('e2', 322)]
+        [('e0', 177), ('e2', 205), ('e1', 502)]
+        """
+        if self.rednumber == 5:
+            nlist = adrawstr.split()
+            revencount = 0
+            for n in nlist[:self.rednumber]:
+                if int(n) % 2 == 0:
+                    revencount += 1
+            if revencount in (0, 4, 5):
+                return False
+        """
+        [('e6', 0), ('e0', 1), ('e5', 8), ('e1', 9), ('e4', 21), ('e2', 28), ('e3', 33)]
+        [('e1', 40), ('e0', 60)]
+
+        [('e6', 0), ('e0', 2), ('e5', 18), ('e1', 20), ('e2', 43), ('e4', 48), ('e3', 69)]
+        [('e1', 97), ('e0', 103)]
+
+        [('e6', 0), ('e0', 4), ('e5', 26), ('e1', 30), ('e4', 65), ('e2', 70), ('e3', 105)]
+        [('e0', 149), ('e1', 151)]
+
+        [('e6', 1), ('e0', 4), ('e5', 35), ('e1', 41), ('e4', 83), ('e2', 93), ('e3', 143)]
+        [('e0', 198), ('e1', 202)]
+
+        [('e6', 15), ('e0', 23), ('e5', 110), ('e1', 121), ('e4', 327), ('e2', 349), ('e3', 517)]
+        [('e1', 701), ('e0', 761)]
+        """
+        if self.rednumber == 6:
+            nlist = adrawstr.split()
+            revencount = 0
+            for n in nlist[:self.rednumber]:
+                if int(n) % 2 == 0:
+                    revencount += 1
+            if revencount in (0, 1, 5, 6):
+                return False
         
         return True
                 
@@ -398,8 +481,10 @@ class DltDataAnalyze(DataAnalyze):
         idearedrate = 1 / 7.
         ideabluerate = 1 / 6.
         historydraws = self.drawlist[:latest]
-        redthreshold = int(len(historydraws) * idearedrate * 0.75)
-        bluethreshold = int(len(historydraws) * ideabluerate * 0.75)
+        redthreshold = int(len(historydraws) * idearedrate * 0.8)
+        bluethreshold = int(len(historydraws) * ideabluerate * 0.8)
+        redmissthreshold = 7 * 2
+        bluemisstheshold = 6 * 2        
         eachcount = self.history_counts_of_each(historydraws)
         for key in eachcount.keys():
             if key[0] == 'b':
@@ -429,10 +514,13 @@ class DltDataAnalyze(DataAnalyze):
                     cerbl.append(key[1:])
                 else:
                     cerbl.append(key[1:])
-        for longest in ['06', '10', '12']:
-            if longest in cebbl:
-                cebbl.remove(longest)
-        
+        longredmiss, longbluemiss = self.history_get_miss_of_each()
+        for bball in cebbl:
+            if longbluemiss[int(bball) - 1] >= bluemisstheshold:
+                cebbl.remove(bball)
+        for rball in cerbl:
+            if longredmiss[int(rball) - 1] >= redmissthreshold:
+                cerbl.remove(rball)
         bbnums = len(cebbl)
         bbcombl = []
         cebbllen = len(cebbl)
@@ -746,6 +834,16 @@ class SsqDataAnalyze(DataAnalyze):
         {'b0': 339, 'b1': 57, 'b2': 2, 'r4': 31, 'r5': 3, 'r6': 0, 'r7': 0, 'r0': 29, 'r1': 95, 'r2': 152, 'r3': 88}
         {'b0': 320, 'b1': 66, 'b2': 11, 'r4': 74, 'r5': 28, 'r6': 2, 'r7': 0, 'r0': 9, 'r1': 42, 'r2': 108, 'r3': 134}
         蓝球的重复几率基本在 1356/1461=0.928 1271/1461=0.869 1189/1461=0.813 367/400=0.917 339/400=0.8457 320/400=0.8
+        
+        {'b0': 274, 'b1': 25, 'b2': 0, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 80, 'r1': 130, 'r2': 78, 'r3': 10}
+        {'b0': 252, 'b1': 44, 'b2': 2, 'r4': 36, 'r5': 6, 'r6': 2, 'r7': 0, 'r0': 23, 'r1': 62, 'r2': 101, 'r3': 68}
+        
+        {'b0': 183, 'b1': 16, 'b2': 0, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 55, 'r1': 90, 'r2': 48, 'r3': 5}
+        {'b0': 171, 'b1': 26, 'b2': 1, 'r4': 20, 'r5': 5, 'r6': 2, 'r7': 0, 'r0': 15, 'r1': 46, 'r2': 70, 'r3': 40}
+        
+        {'b0': 93, 'b1': 6, 'b2': 0, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 27, 'r1': 41, 'r2': 26, 'r3': 4}
+        {'b0': 86, 'b1': 12, 'b2': 0, 'r4': 9, 'r5': 5, 'r6': 2, 'r7': 0, 'r0': 7, 'r1': 25, 'r2': 28, 'r3': 22}
+
         利用这个规律，可以剔除2或者4个蓝球
         3.根据历史统计，凡是历史上出现过的组合，重来没有重复过，这样又可以剔除余下总组合数中的历史总和数
         这样获得的组合数仍然有几十万，哈哈，不过比2000多万好多了，就是个乐趣。
@@ -939,3 +1037,4 @@ if __name__ == '__main__':
     for draw in draws:
         r1,b1= draw.rsplit(None,1)
         print r1 + '+' + b1
+        
