@@ -359,6 +359,23 @@ class DataAnalyze(object):
 
         #还有就是奇偶分布，全奇数和全偶肯定是小事件，我还发现在近期的大乐透，
         #4偶也是极小事件。
+        
+        """
+        [('e5', 0), ('e0', 3), ('e4', 4), ('e1', 30), ('e2', 31), ('e3', 32)]
+        [('e2', 20), ('e0', 24), ('e1', 56)]
+        
+        [('e5', 3), ('e0', 8), ('e4', 15), ('e1', 41), ('e3', 61), ('e2', 72)]
+        [('e2', 40), ('e0', 43), ('e1', 117)]
+        
+        [('e5', 5), ('e0', 9), ('e4', 26), ('e1', 63), ('e3', 88), ('e2', 109)]
+        [('e0', 64), ('e2', 66), ('e1', 170)]
+        
+        [('e5', 7), ('e0', 12), ('e4', 35), ('e1', 82), ('e3', 126), ('e2', 138)]
+        [('e0', 84), ('e2', 95), ('e1', 221)]
+        
+        [('e5', 11), ('e0', 28), ('e4', 99), ('e1', 160), ('e3', 264), ('e2', 322)]
+        [('e0', 177), ('e2', 205), ('e1', 502)]
+        """
         if self.rednumber == 5:
             nlist = adrawstr.split()
             revencount = 0
@@ -366,6 +383,30 @@ class DataAnalyze(object):
                 if int(n) % 2 == 0:
                     revencount += 1
             if revencount in (0, 4, 5):
+                return False
+        """
+        [('e6', 0), ('e0', 1), ('e5', 8), ('e1', 9), ('e4', 21), ('e2', 28), ('e3', 33)]
+        [('e1', 40), ('e0', 60)]
+
+        [('e6', 0), ('e0', 2), ('e5', 18), ('e1', 20), ('e2', 43), ('e4', 48), ('e3', 69)]
+        [('e1', 97), ('e0', 103)]
+
+        [('e6', 0), ('e0', 4), ('e5', 26), ('e1', 30), ('e4', 65), ('e2', 70), ('e3', 105)]
+        [('e0', 149), ('e1', 151)]
+
+        [('e6', 1), ('e0', 4), ('e5', 35), ('e1', 41), ('e4', 83), ('e2', 93), ('e3', 143)]
+        [('e0', 198), ('e1', 202)]
+
+        [('e6', 15), ('e0', 23), ('e5', 110), ('e1', 121), ('e4', 327), ('e2', 349), ('e3', 517)]
+        [('e1', 701), ('e0', 761)]
+        """
+        if self.rednumber == 6:
+            nlist = adrawstr.split()
+            revencount = 0
+            for n in nlist[:self.rednumber]:
+                if int(n) % 2 == 0:
+                    revencount += 1
+            if revencount in (0, 1, 5, 6):
                 return False
         
         return True
@@ -982,7 +1023,7 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
 
 if __name__ == '__main__':
     ssq = SsqDataAnalyze()
-    reh,beh = ssq.history_counts_of_odd_and_even(latest=400)
+    reh,beh = ssq.history_counts_of_odd_and_even(latest=100)
     dlt = DltDataAnalyze()
     reh, beh = dlt.history_counts_of_odd_and_even(latest=100)
     print reh
