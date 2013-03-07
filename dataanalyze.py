@@ -864,7 +864,7 @@ class SsqDataAnalyze(DataAnalyze):
             if key[0] == 'r':
                 if eachcount[key] <= redthreshold:
                     eachcount.pop(key)
-        erbl, ebbl = self._get_exclude_ball(historydraws,2)
+        erbl, ebbl = self._get_exclude_ball(historydraws,4)
         erbl, delebbl = self._get_exclude_ball(historydraws,1)
         del delebbl
         for ebb in ebbl:
@@ -948,7 +948,7 @@ class SsqDataAnalyze(DataAnalyze):
         i = 0
         totalcombs += (a * (a-1) * (a-2) * (a-3) * (a-4) / (5*4*3*2*1)) * len(erbl) * b
         print totalcombs
-        while len(nextdraws) < len(er2bcombl) + len(erbl):
+        while len(nextdraws) < 3*len(er2bcombl):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber - 1)):
                 rnextdraw = cerbl[((self.rednumber - 1) * j) : ((self.rednumber - 1) * ( j + 1))]
@@ -965,12 +965,12 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == len(er2bcombl) + len(erbl):
+                if len(nextdraws) == 3*len(er2bcombl):
                     break
                 
         totalcombs += (a*(a-1)*(a-2)*(a-3)*(a-4)*(a-5)/ (6*5*4*3*2*1)) * b
         i = 0
-        while len(nextdraws) < len(er2bcombl) + len(erbl) + 5:
+        while len(nextdraws) < 4*len(er2bcombl):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber)):
                 rnextdraw = cerbl[(self.rednumber * j) : (self.rednumber * ( j + 1))]
@@ -986,7 +986,7 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == len(er2bcombl) + len(erbl) + 5:
+                if len(nextdraws) == 4*len(er2bcombl):
                     break
         print totalcombs
         return nextdraws        
@@ -1033,7 +1033,15 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
 
 if __name__ == '__main__':
     ssq = SsqDataAnalyze()
-    draws = ssq.my03_get_next_draw(latest=400)
+    draws = ssq.my03_get_next_draw(latest=200)
+    #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:100])
+    #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:100])
+    #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:100])
+    #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:100])
     for draw in draws:
         r1,b1= draw.rsplit(None,1)
         print r1 + '+' + b1
