@@ -953,7 +953,7 @@ class SsqDataAnalyze(DataAnalyze):
             for j in range(len(cerbl) / (self.rednumber - 1)):
                 rnextdraw = cerbl[((self.rednumber - 1) * j) : ((self.rednumber - 1) * ( j + 1))]
                 nextdraw = ''
-                rnextdraw += [erbl[i]]
+                rnextdraw += [erbl[i%(self.rednumber-1)]]
                 rnextdraw.sort()
                 for rb in rnextdraw:
                     nextdraw = nextdraw + rb + ' '
