@@ -15,8 +15,7 @@ import random
 import time
 
 from getdata import DataFetcher
-from getdata import DLTDRAWDATA, SSQDRAWDATA
-
+from getdata import DLTDRAWDATA, SSQDRAWDATA, THREEDRAWDATA
 
 class NotSupportedLotteryType(Exception):
     pass
@@ -69,6 +68,8 @@ class DataAnalyze(object):
             drawdatafilename = DLTDRAWDATA
         elif self.kind == DataFetcher.TYPESSQ:
             drawdatafilename = SSQDRAWDATA
+        elif self.kind == DataFetcher.TYPE3D:
+            drawdatafilename = THREEDRAWDATA 
         else:
             raise NoSupportLotteryType()
         
@@ -194,7 +195,7 @@ class DataAnalyze(object):
             selecteddraws = historydraws
         if latest != None:
             selecteddraws = selecteddraws[:latest]
-        for i in range(1, self.MAXBLUEBALL + 1):
+        for i in range(self.MINBLUEBALL, self.MAXBLUEBALL + 1):
             bkey = ''
             if i < 10:
                 bkey = 'b' + '0' + str(i)
@@ -202,7 +203,7 @@ class DataAnalyze(object):
                 bkey = 'b' + str(i)
             resultdict[bkey] = 0
         
-        for i in range(1, self.MAXREDBALL + 1):
+        for i in range(self.MINBLUEBALL, self.MAXREDBALL + 1):
             rkey = ''
             if i < 10:
                 rkey = 'r' + '0' + str(i)
@@ -226,10 +227,7 @@ class DataAnalyze(object):
     def history_repeat_rate(self, round=1, historydraws=None, norepeat=False):
         if historydraws == None:
             historydraws = self.drawlist
-        repeat_rate = {
-            'r0':0, 'r1':0, 'r2':0, 'r3':0, 'r4':0, 'r5':0, 'r6':0, 'r7':0,
-            'b0':0, 'b1':0, 'b2':0
-            }
+        repeat_rate = { }
         length = len(historydraws)
         i = 0
         
@@ -245,7 +243,7 @@ class DataAnalyze(object):
                         rrepeate += 1
                         if norepeat:
                             currentdraw.remove(rn)
-                            rednumber =- 1
+                            rednumber -= 1
                 for bn in currentdraw[rednumber:]:
                     if bn in lastround[rednumber:]:
                         brepeate += 1
@@ -265,7 +263,7 @@ class DataAnalyze(object):
     def history_get_miss_of_each(self):
         redmiss = []
         bluemiss = []
-        for rball in range(1, self.MAXREDBALL + 1):
+        for rball in range(self.MINREDBALL, self.MAXREDBALL + 1):
             if rball < 10:
                 rball = '0' + str(rball)
             else:
@@ -282,7 +280,9 @@ class DataAnalyze(object):
                 if found:
                     redmiss.append(misstime)
                     break
-        for bball in range(1, self.MAXBLUEBALL + 1):
+        for bball in range(self.MINBLUEBALL, self.MAXBLUEBALL + 1):
+            if self.MAXBLUEBALL == 0:
+                break
             if bball < 10:
                 bball = '0' + str(bball)
             else:
@@ -834,6 +834,16 @@ class SsqDataAnalyze(DataAnalyze):
         {'b0': 339, 'b1': 57, 'b2': 2, 'r4': 31, 'r5': 3, 'r6': 0, 'r7': 0, 'r0': 29, 'r1': 95, 'r2': 152, 'r3': 88}
         {'b0': 320, 'b1': 66, 'b2': 11, 'r4': 74, 'r5': 28, 'r6': 2, 'r7': 0, 'r0': 9, 'r1': 42, 'r2': 108, 'r3': 134}
         蓝球的重复几率基本在 1356/1461=0.928 1271/1461=0.869 1189/1461=0.813 367/400=0.917 339/400=0.8457 320/400=0.8
+        
+        {'b0': 274, 'b1': 25, 'b2': 0, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 80, 'r1': 130, 'r2': 78, 'r3': 10}
+        {'b0': 252, 'b1': 44, 'b2': 2, 'r4': 36, 'r5': 6, 'r6': 2, 'r7': 0, 'r0': 23, 'r1': 62, 'r2': 101, 'r3': 68}
+        
+        {'b0': 183, 'b1': 16, 'b2': 0, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 55, 'r1': 90, 'r2': 48, 'r3': 5}
+        {'b0': 171, 'b1': 26, 'b2': 1, 'r4': 20, 'r5': 5, 'r6': 2, 'r7': 0, 'r0': 15, 'r1': 46, 'r2': 70, 'r3': 40}
+        
+        {'b0': 93, 'b1': 6, 'b2': 0, 'r4': 1, 'r5': 0, 'r6': 0, 'r7': 0, 'r0': 27, 'r1': 41, 'r2': 26, 'r3': 4}
+        {'b0': 86, 'b1': 12, 'b2': 0, 'r4': 9, 'r5': 5, 'r6': 2, 'r7': 0, 'r0': 7, 'r1': 25, 'r2': 28, 'r3': 22}
+
         利用这个规律，可以剔除2或者4个蓝球
         3.根据历史统计，凡是历史上出现过的组合，重来没有重复过，这样又可以剔除余下总组合数中的历史总和数
         这样获得的组合数仍然有几十万，哈哈，不过比2000多万好多了，就是个乐趣。
@@ -854,7 +864,7 @@ class SsqDataAnalyze(DataAnalyze):
             if key[0] == 'r':
                 if eachcount[key] <= redthreshold:
                     eachcount.pop(key)
-        erbl, ebbl = self._get_exclude_ball(historydraws,2)
+        erbl, ebbl = self._get_exclude_ball(historydraws,4)
         erbl, delebbl = self._get_exclude_ball(historydraws,1)
         del delebbl
         for ebb in ebbl:
@@ -938,12 +948,12 @@ class SsqDataAnalyze(DataAnalyze):
         i = 0
         totalcombs += (a * (a-1) * (a-2) * (a-3) * (a-4) / (5*4*3*2*1)) * len(erbl) * b
         print totalcombs
-        while len(nextdraws) < len(er2bcombl) + len(erbl):
+        while len(nextdraws) < 3*len(er2bcombl):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber - 1)):
                 rnextdraw = cerbl[((self.rednumber - 1) * j) : ((self.rednumber - 1) * ( j + 1))]
                 nextdraw = ''
-                rnextdraw += [erbl[i]]
+                rnextdraw += [erbl[i%(self.rednumber-1)]]
                 rnextdraw.sort()
                 for rb in rnextdraw:
                     nextdraw = nextdraw + rb + ' '
@@ -955,12 +965,12 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == len(er2bcombl) + len(erbl):
+                if len(nextdraws) == 3*len(er2bcombl):
                     break
                 
         totalcombs += (a*(a-1)*(a-2)*(a-3)*(a-4)*(a-5)/ (6*5*4*3*2*1)) * b
         i = 0
-        while len(nextdraws) < len(er2bcombl) + len(erbl) + 5:
+        while len(nextdraws) < 4*len(er2bcombl):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber)):
                 rnextdraw = cerbl[(self.rednumber * j) : (self.rednumber * ( j + 1))]
@@ -976,10 +986,46 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == len(er2bcombl) + len(erbl) + 5:
+                if len(nextdraws) == 4*len(er2bcombl):
                     break
         print totalcombs
         return nextdraws        
+        
+class ThreeDDataAnalyze(DataAnalyze):
+    MINBLUEBALL=0
+    MAXBLUEBALL=0
+    MINREDBALL=0
+    MAXREDBALL=9
+    
+    def __init__(self):
+        DataAnalyze.__init__(self)
+        self.kind = DataFetcher.TYPE3D
+        self.rednumber = 3
+        self.bluenumber = 0
+        self._gen_data_list()
+    
+    def history_counts_of_seqtype(self, latest=None):
+        """
+        计算在历史中的各种重复类型和肥重复类型的计数
+        """
+        selecteddraws = self.drawlist[:latest]
+        seqtype = {}
+        for drawdata in selecteddraws:
+            rbns = drawdata[1].split()
+            repeatrate = 0
+            if rbns[0] == rbns[1]:
+                repeatrate += 1
+            if rbns[0] == rbns[2]:
+                repeatrate += 1
+            if rbns[1] == rbns[2]:
+                repeatrate += 1
+            try:
+                seqtype['r' + str(repeatrate)] += 1
+            except KeyError:
+                seqtype['r' + str(repeatrate)] = 1
+        
+        return seqtype
+        
         
 def next_lottery_draw(kind, num=1):
     lotterygenerator = None
@@ -1022,9 +1068,34 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
     print sorted(bluebs, key=lambda ball:ball[0])
 
 if __name__ == '__main__':
-    ssq = SsqDataAnalyze()
-    reh,beh = ssq.history_counts_of_odd_and_even(latest=100)
-    dlt = DltDataAnalyze()
-    reh, beh = dlt.history_counts_of_odd_and_even(latest=100)
-    print reh
-    print beh
+    #ssq = SsqDataAnalyze()
+    #draws = ssq.my03_get_next_draw(latest=200)
+    #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:200])
+    #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:100])
+    #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:100])
+    #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:100])
+    #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:100])
+    #for draw in draws:
+        #r1,b1= draw.rsplit(None,1)
+        #print r1 + '+' + b1
+    
+    threed = ThreeDDataAnalyze()
+    print threed.history_counts_of_seqtype()
+    print threed.history_counts_of_seqtype(latest=600)
+    print threed.history_counts_of_seqtype(latest=300)
+    print threed.history_counts_of_seqtype(latest=200)
+    print threed.history_counts_of_seqtype(latest=100)
+    eachcount = threed.history_counts_of_each(latest=100).items()
+    eachcount.sort(key=lambda ball:ball[1])
+    print eachcount
+    eachcount = threed.history_counts_of_each(latest=200).items()
+    eachcount.sort(key=lambda ball:ball[1])
+    print eachcount    
+    print threed.history_repeat_rate(1,threed.drawlist[:100])
+    print threed.history_repeat_rate(1,threed.drawlist[:100],True)
+    print threed.history_repeat_rate(2,threed.drawlist[:100])
+    print threed.history_repeat_rate(2,threed.drawlist[:100],True)
+    print threed.history_get_miss_of_each()

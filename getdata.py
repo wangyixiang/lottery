@@ -19,10 +19,12 @@ DLTDRAWLIST = 'dlt.txt'
 DATASITE = 'www.17500.cn'
 SSQDRAWDATA = 'data' + os.sep + 'ssqdraws'
 DLTDRAWDATA = 'data' + os.sep + 'dltdraws'
+THREEDRAWDATA = 'data' + os.sep + '3ddraws'
 
 class DataFetcher(object):
     TYPESSQ = 'ssq'
     TYPEDLT = 'dlt'
+    TYPE3D = '3d'
     def __init__(self, kind=""):
         self.kind = kind
         self.lotterylist = []
@@ -134,4 +136,22 @@ class DataExtractor(object):
         finaldatafile.close()
     
 if __name__ == "__main__":
-    pass
+    f = open('3d.txt')
+    drawdata = []
+    lines = f.readlines()
+    f.close()
+    for line in lines:
+        elements = line.split()
+        adraw = elements[1]+'('+elements[0][2:]+')' + ' '\
+            + '0' + elements[2] + ' '\
+            + '0' + elements[3] + ' '\
+            + '0' + elements[4]
+        drawdata.append(adraw)
+    f = open(r'data\3ddraws','w')
+    datalen = len(drawdata) - 1
+    while datalen > 0:
+        f.write(drawdata[datalen])
+        f.write('\n')
+        datalen -= 1
+    f.close()
+    
