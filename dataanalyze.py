@@ -15,8 +15,7 @@ import random
 import time
 
 from getdata import DataFetcher
-from getdata import DLTDRAWDATA, SSQDRAWDATA
-
+from getdata import DLTDRAWDATA, SSQDRAWDATA, THREEDRAWDATA
 
 class NotSupportedLotteryType(Exception):
     pass
@@ -69,6 +68,8 @@ class DataAnalyze(object):
             drawdatafilename = DLTDRAWDATA
         elif self.kind == DataFetcher.TYPESSQ:
             drawdatafilename = SSQDRAWDATA
+        elif self.kind == DataFetcher.TYPE3D:
+            drawdatafilename = THREEDRAWDATA 
         else:
             raise NoSupportLotteryType()
         
@@ -194,7 +195,7 @@ class DataAnalyze(object):
             selecteddraws = historydraws
         if latest != None:
             selecteddraws = selecteddraws[:latest]
-        for i in range(1, self.MAXBLUEBALL + 1):
+        for i in range(self.MINBLUEBALL, self.MAXBLUEBALL + 1):
             bkey = ''
             if i < 10:
                 bkey = 'b' + '0' + str(i)
@@ -202,7 +203,7 @@ class DataAnalyze(object):
                 bkey = 'b' + str(i)
             resultdict[bkey] = 0
         
-        for i in range(1, self.MAXREDBALL + 1):
+        for i in range(self.MINBLUEBALL, self.MAXREDBALL + 1):
             rkey = ''
             if i < 10:
                 rkey = 'r' + '0' + str(i)
@@ -226,10 +227,7 @@ class DataAnalyze(object):
     def history_repeat_rate(self, round=1, historydraws=None, norepeat=False):
         if historydraws == None:
             historydraws = self.drawlist
-        repeat_rate = {
-            'r0':0, 'r1':0, 'r2':0, 'r3':0, 'r4':0, 'r5':0, 'r6':0, 'r7':0,
-            'b0':0, 'b1':0, 'b2':0
-            }
+        repeat_rate = { }
         length = len(historydraws)
         i = 0
         
@@ -245,7 +243,7 @@ class DataAnalyze(object):
                         rrepeate += 1
                         if norepeat:
                             currentdraw.remove(rn)
-                            rednumber =- 1
+                            rednumber -= 1
                 for bn in currentdraw[rednumber:]:
                     if bn in lastround[rednumber:]:
                         brepeate += 1
@@ -265,7 +263,7 @@ class DataAnalyze(object):
     def history_get_miss_of_each(self):
         redmiss = []
         bluemiss = []
-        for rball in range(1, self.MAXREDBALL + 1):
+        for rball in range(self.MINREDBALL, self.MAXREDBALL + 1):
             if rball < 10:
                 rball = '0' + str(rball)
             else:
@@ -282,7 +280,9 @@ class DataAnalyze(object):
                 if found:
                     redmiss.append(misstime)
                     break
-        for bball in range(1, self.MAXBLUEBALL + 1):
+        for bball in range(self.MINBLUEBALL, self.MAXBLUEBALL + 1):
+            if self.MAXBLUEBALL == 0:
+                break
             if bball < 10:
                 bball = '0' + str(bball)
             else:
@@ -991,6 +991,42 @@ class SsqDataAnalyze(DataAnalyze):
         print totalcombs
         return nextdraws        
         
+class ThreeDDataAnalyze(DataAnalyze):
+    MINBLUEBALL=0
+    MAXBLUEBALL=0
+    MINREDBALL=0
+    MAXREDBALL=9
+    
+    def __init__(self):
+        DataAnalyze.__init__(self)
+        self.kind = DataFetcher.TYPE3D
+        self.rednumber = 3
+        self.bluenumber = 0
+        self._gen_data_list()
+    
+    def history_counts_of_seqtype(self, latest=None):
+        """
+        计算在历史中的各种重复类型和肥重复类型的计数
+        """
+        selecteddraws = self.drawlist[:latest]
+        seqtype = {}
+        for drawdata in selecteddraws:
+            rbns = drawdata[1].split()
+            repeatrate = 0
+            if rbns[0] == rbns[1]:
+                repeatrate += 1
+            if rbns[0] == rbns[2]:
+                repeatrate += 1
+            if rbns[1] == rbns[2]:
+                repeatrate += 1
+            try:
+                seqtype['r' + str(repeatrate)] += 1
+            except KeyError:
+                seqtype['r' + str(repeatrate)] = 1
+        
+        return seqtype
+        
+        
 def next_lottery_draw(kind, num=1):
     lotterygenerator = None
     if kind == DataFetcher.TYPEDLT:
@@ -1032,8 +1068,8 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
     print sorted(bluebs, key=lambda ball:ball[0])
 
 if __name__ == '__main__':
-    ssq = SsqDataAnalyze()
-    draws = ssq.my03_get_next_draw(latest=200)
+    #ssq = SsqDataAnalyze()
+    #draws = ssq.my03_get_next_draw(latest=200)
     #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:200])
     #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:200])
     #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:200])
@@ -1042,7 +1078,24 @@ if __name__ == '__main__':
     #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:100])
     #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:100])
     #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:100])
-    for draw in draws:
-        r1,b1= draw.rsplit(None,1)
-        print r1 + '+' + b1
-        
+    #for draw in draws:
+        #r1,b1= draw.rsplit(None,1)
+        #print r1 + '+' + b1
+    
+    threed = ThreeDDataAnalyze()
+    print threed.history_counts_of_seqtype()
+    print threed.history_counts_of_seqtype(latest=600)
+    print threed.history_counts_of_seqtype(latest=300)
+    print threed.history_counts_of_seqtype(latest=200)
+    print threed.history_counts_of_seqtype(latest=100)
+    eachcount = threed.history_counts_of_each(latest=100).items()
+    eachcount.sort(key=lambda ball:ball[1])
+    print eachcount
+    eachcount = threed.history_counts_of_each(latest=200).items()
+    eachcount.sort(key=lambda ball:ball[1])
+    print eachcount    
+    print threed.history_repeat_rate(1,threed.drawlist[:100])
+    print threed.history_repeat_rate(1,threed.drawlist[:100],True)
+    print threed.history_repeat_rate(2,threed.drawlist[:100])
+    print threed.history_repeat_rate(2,threed.drawlist[:100],True)
+    print threed.history_get_miss_of_each()
