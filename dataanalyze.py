@@ -346,6 +346,88 @@ class DataAnalyze(object):
         bluehistory.sort(key=lambda ball:ball[1])
         return redhistory, bluehistory
     
+
+    def history_red_keepcome_counts_of_each(self, historydraws=None,removerepeat=False):
+        keepcomestat = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                keepcomestat['0' + str(i)] = {}
+            else:
+                keepcomestat[str(i)] = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        drawcurpos = 0
+        while True:
+            adraw = selecteddraws[drawcurpos]
+            drawballs = adraw[1].split()[:self.rednumber]
+            for ball in drawballs:
+                drawpos = 1
+                count = 0
+                while True:
+                    if drawpos + drawcurpos < len(selecteddraws):
+                        pastdrawballs = selecteddraws[drawpos + drawcurpos][1].split()[:self.rednumber]
+                    else:
+                        if count > 0:
+                            try:
+                                keepcomestat[ball][count] += 1
+                            except KeyError:
+                                keepcomestat[ball][count] = 1                            
+                        break
+                    if ball in pastdrawballs:
+                        count += 1
+                        drawpos += 1
+                    else:
+                        try:
+                            keepcomestat[ball][count] += 1
+                        except KeyError:
+                            keepcomestat[ball][count] = 1
+                        break
+            drawcurpos += 1
+            if drawcurpos == len(selecteddraws) -2:
+                break
+        return keepcomestat
+    
+    def history_red_recome_counts_of_each(self, historydraws=None,latest=None, norepeat=False):
+        recomestat = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                recomestat['0' + str(i)] = {}
+            else:
+                recomestat[str(i)] = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist[:latest]
+        drawcurpos = 0
+        drawpos = 0
+        while True:
+            adraw = selecteddraws[drawcurpos]
+            drawballs = adraw[1].split()[:self.rednumber]
+            if norepeat == True:
+                drawballs = list(set(drawballs))
+            count = 0
+            done = False
+            for pastdraw in selecteddraws[drawcurpos + 1:]:
+                pastdrawballs = pastdraw[1].split()[:self.rednumber]
+                for ball in drawballs:
+                    if ball in pastdrawballs:
+                        try:
+                            drawballs.remove(ball)
+                            recomestat[ball][count] += 1
+                        except KeyError:
+                            recomestat[ball][count] = 1
+                    if len(drawballs) == 0:
+                        done = True
+                        break
+                if done:
+                    break
+                count +=1
+            drawcurpos += 1
+            if drawcurpos == len(selecteddraws) -2:
+                break
+            
+        return recomestat    
+    
     def get_red_and_blue_sum(self, adrawstr):
         redsum = 0
         bluesum = 0
@@ -558,6 +640,32 @@ class DltDataAnalyze(DataAnalyze):
             
         nextdraws = []
         i = 0
+        recomestat = self.history_red_recome_counts_of_each(historydraws)
+        missrate = self.history_get_miss_of_each()
+        redmissrate = missrate[0]
+        bluemissrate = missrate[1]
+        print len(cerbl)
+        for rball in cerbl:
+            try:
+                recome = recomestat[rball][redmissrate[int(rball) - 1]]
+                largertime = 0
+                for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
+                    if rcrball < 10:
+                        rcrball = '0' + str(rcrball)
+                    else:
+                        rcrball = str(rcrball)
+                    if rball == rcrball:
+                        continue
+                    try:
+                        if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
+                            largertime += 1
+                    except KeyError:
+                        pass
+                if largertime >= 3:
+                    cerbl.remove(rball)
+            except KeyError:
+                cerbl.remove(rball)
+        print len(cerbl)
         while len(nextdraws) < rbcombs:
             random.shuffle(cerbl)
             for j in range(len(cerbl) / self.rednumber):
