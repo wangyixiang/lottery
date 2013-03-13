@@ -11,6 +11,7 @@
 除非在大乐透中有杰出的规律出现，来进行基数的大量消减，才有玩大乐透的意义
 
 """
+import datetime
 import os
 import random
 import time
@@ -661,7 +662,7 @@ class DltDataAnalyze(DataAnalyze):
                             largertime += 1
                     except KeyError:
                         pass
-                if largertime >= 3:
+                if largertime >= 4:
                     cerbl.remove(rball)
             except KeyError:
                 cerbl.remove(rball)
@@ -1044,6 +1045,32 @@ class SsqDataAnalyze(DataAnalyze):
                 pass
         random.shuffle(cebbl)
         cebbllen = len(cebbl)
+        recomestat = self.history_red_recome_counts_of_each(historydraws)
+        missrate = self.history_get_miss_of_each()
+        redmissrate = missrate[0]
+        bluemissrate = missrate[1]
+        print len(cerbl)
+        for rball in cerbl:
+            try:
+                recome = recomestat[rball][redmissrate[int(rball) - 1]]
+                largertime = 0
+                for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
+                    if rcrball < 10:
+                        rcrball = '0' + str(rcrball)
+                    else:
+                        rcrball = str(rcrball)
+                    if rball == rcrball:
+                        continue
+                    try:
+                        if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
+                            largertime += 1
+                    except KeyError:
+                        pass
+                if largertime >= 4:
+                    cerbl.remove(rball)
+            except KeyError:
+                cerbl.remove(rball)
+        print len(cerbl)        
         nextdraws = []
         i = 0
         jj = 0
@@ -1488,6 +1515,102 @@ class ESTDataAnalyze(CombinationDataAnalyze):
         return excludedballs, secexcludedballs    
     
 
+    def history_max_and_min_of_everyday(self,historydraws=None):
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        selecteddraws.sort(key=lambda k:k[0],reverse=True)
+        startday = datetime.datetime.strptime(selecteddraws[0][0][:8],'%Y%m%d')
+        oneday = datetime.timedelta(1)
+        onedaydraws = []
+        everydayresult = {}
+        for adraw in historydraw:
+            if adraw[0][:8] == startday.strftime('%Y%m%d'):
+                onedaydraws.append(adraw)
+            else:
+                if len(onedaydraws) == 84:
+                    everydayresult[startday.strftime('%Y%m%d')] = \
+                        self.history_counts_of_each(onedaydraws)
+                startday -= oneday
+                onedaydraws=[]
+                onedaydraws.append(adraw)
+        everydayresult[startday.strftime('%Y%m%d')] = \
+            self.history_counts_of_each(onedaydraws)
+        #everydaykeys = everydayresult.keys()
+        #everydaykeys.sort()
+        #for everydaykey in everydaykeys:
+            #eachcount = everydayresult[everydaykey].items()
+            #print everydaykey,
+            #print max(eachcount, key=lambda k:k[1]),
+            #print min(eachcount, key=lambda k:k[1])
+        return everydayresult 
+    
+    def history_balls_in_max_and_min(self, historydraws=None):
+        if historydraws == None:
+            historydraws = self.drawlist
+        everydayresult = self.history_max_and_min_of_everyday(historydraws)
+        everydaykeys = everydayresult.keys()
+        everydaykeys.sort()
+        maxminresult = {}
+        for everydaykey in everydaykeys:
+            eachcount = everydayresult[everydaykey].items()
+            maxminresult[everydaykey] = (max(eachcount, key=lambda k:k[1]),
+                                         min(eachcount, key=lambda k:k[1]))
+        
+        maxminstat = {'max':{}, 'min':{}}
+        eachmaxmin = {}
+        for i in range(1,12):
+            if i < 10:
+                i = 'r0' + str(i)
+            else:
+                i = 'r' + str(i)
+            eachmaxmin[i] = {'max':0, 'min':0}
+        for everydaykey in everydaykeys:
+            try:
+                eachmaxmin[maxminresult[everydaykey][0][0]]['max'] +=1
+                if maxminresult[everydaykey][0][0] not in maxminstat['max'][maxminresult[everydaykey][0][1]]:
+                    maxminstat['max'][maxminresult[everydaykey][0][1]].append(\
+                        maxminresult[everydaykey][0][0])
+            except KeyError:
+                maxminstat['max'][maxminresult[everydaykey][0][1]] = \
+                    [maxminresult[everydaykey][0][0]]
+            try:
+                eachmaxmin[maxminresult[everydaykey][1][0]]['min'] +=1
+                if maxminresult[everydaykey][1][0] not in maxminstat['min'][maxminresult[everydaykey][1][1]]:
+                    maxminstat['min'][maxminresult[everydaykey][1][1]].append(\
+                        maxminresult[everydaykey][1][0])
+            except KeyError:
+                maxminstat['min'][maxminresult[everydaykey][1][1]] = \
+                    [maxminresult[everydaykey][1][0]]
+        return maxminstat
+    
+    def history_max_and_min_total_for_balls(self, historydraws=None):
+        if historydraws == None:
+            historydraws = self.drawlist
+        everydayresult = est.history_max_and_min_of_everyday(historydraw)
+        everydaykeys = everydayresult.keys()
+        everydaykeys.sort()
+        maxminresult = {}
+        for everydaykey in everydaykeys:
+            eachcount = everydayresult[everydaykey].items()
+            maxminresult[everydaykey] = (max(eachcount, key=lambda k:k[1]),
+                                         min(eachcount, key=lambda k:k[1]))
+        
+        maxtotal = {}
+        mintotal = {}
+        
+        for everydaykey in everydaykeys:
+            try:
+                maxtotal[maxminresult[everydaykey][0][1]] += 1
+            except KeyError:
+                maxtotal[maxminresult[everydaykey][0][1]] = 1
+            try:
+                mintotal[maxminresult[everydaykey][1][1]] += 1
+            except KeyError:
+                mintotal[maxminresult[everydaykey][1][1]] = 1
+        
+        return maxtotal, mintotal
+        
 def next_lottery_draw(kind, num=1):
     lotterygenerator = None
     if kind == DataFetcher.TYPEDLT:
@@ -1530,11 +1653,7 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
 
 if __name__ == '__main__':
     est = ESTDataAnalyze()
-    latest = None
-    period = est.drawlist[0][0][8:]
-    print period
-    historydraw = est.drawlist[:int(period)]    
-    result = est.history_consecutive_win_of_draw(historydraw)
-    print result
-    result = est.history_get_miss_of_each()
-    print result
+    historydraw = est.drawlist[:84*111]
+    maxtotal, mintotal = est.history_max_and_min_total_for_balls(historydraw)
+    print maxtotal, mintotal
+    
