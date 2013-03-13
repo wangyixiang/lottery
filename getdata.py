@@ -20,11 +20,15 @@ DATASITE = 'www.17500.cn'
 SSQDRAWDATA = 'data' + os.sep + 'ssqdraws'
 DLTDRAWDATA = 'data' + os.sep + 'dltdraws'
 THREEDRAWDATA = 'data' + os.sep + '3ddraws'
+P3DRAWDATA = 'data' + os.sep + 'p3draws'
+ESTDRAWDATA = 'data' + os.sep + 'estdraws'
 
 class DataFetcher(object):
     TYPESSQ = 'ssq'
     TYPEDLT = 'dlt'
     TYPE3D = '3d'
+    TYPEP3 = 'p3'
+    TYPEEST = 'est'
     def __init__(self, kind=""):
         self.kind = kind
         self.lotterylist = []
@@ -136,7 +140,7 @@ class DataExtractor(object):
         finaldatafile.close()
     
 if __name__ == "__main__":
-    f = open('3d.txt')
+    f = open('P3.txt')
     drawdata = []
     lines = f.readlines()
     f.close()
@@ -147,7 +151,7 @@ if __name__ == "__main__":
             + '0' + elements[3] + ' '\
             + '0' + elements[4]
         drawdata.append(adraw)
-    f = open(r'data\3ddraws','w')
+    f = open(r'data\p3draws','w')
     datalen = len(drawdata) - 1
     while datalen > 0:
         f.write(drawdata[datalen])

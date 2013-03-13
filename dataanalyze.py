@@ -11,11 +11,13 @@
 除非在大乐透中有杰出的规律出现，来进行基数的大量消减，才有玩大乐透的意义
 
 """
+import datetime
+import os
 import random
 import time
 
 from getdata import DataFetcher
-from getdata import DLTDRAWDATA, SSQDRAWDATA, THREEDRAWDATA
+from getdata import DLTDRAWDATA, SSQDRAWDATA, THREEDRAWDATA, P3DRAWDATA, ESTDRAWDATA
 
 class NotSupportedLotteryType(Exception):
     pass
@@ -69,7 +71,11 @@ class DataAnalyze(object):
         elif self.kind == DataFetcher.TYPESSQ:
             drawdatafilename = SSQDRAWDATA
         elif self.kind == DataFetcher.TYPE3D:
-            drawdatafilename = THREEDRAWDATA 
+            drawdatafilename = THREEDRAWDATA
+        elif self.kind == DataFetcher.TYPEP3:
+            drawdatafilename = P3DRAWDATA
+        elif self.kind == DataFetcher.TYPEEST:
+            drawdatafilename = ESTDRAWDATA
         else:
             raise NoSupportLotteryType()
         
@@ -77,6 +83,8 @@ class DataAnalyze(object):
         drawlines = drawdatafile.readlines()
         self.drawlist = []
         for drawline in drawlines:
+            if drawline.strip() == '':
+                continue
             [drawno, drawdata] = drawline.split(None, 1)
             self.drawlist.append([drawno, drawdata.rstrip()])
 
@@ -196,6 +204,8 @@ class DataAnalyze(object):
         if latest != None:
             selecteddraws = selecteddraws[:latest]
         for i in range(self.MINBLUEBALL, self.MAXBLUEBALL + 1):
+            if self.MAXBLUEBALL == 0:
+                break
             bkey = ''
             if i < 10:
                 bkey = 'b' + '0' + str(i)
@@ -203,7 +213,9 @@ class DataAnalyze(object):
                 bkey = 'b' + str(i)
             resultdict[bkey] = 0
         
-        for i in range(self.MINBLUEBALL, self.MAXREDBALL + 1):
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if self.MAXREDBALL == 0:
+                break
             rkey = ''
             if i < 10:
                 rkey = 'r' + '0' + str(i)
@@ -224,20 +236,20 @@ class DataAnalyze(object):
                 i += 1
         return resultdict
     
-    def history_repeat_rate(self, round=1, historydraws=None, norepeat=False):
+    def history_repeat_rate(self, round=1, historydraws=None, norepeat=False, step=0):
         if historydraws == None:
             historydraws = self.drawlist
         repeat_rate = { }
         length = len(historydraws)
         i = 0
         
-        while i < length - round:
+        while i < length - round - step:
             currentdraw = historydraws[i][1].split()
             rrepeate = 0
             brepeate = 0
             rednumber = self.rednumber
             for j in range(round):
-                lastround = historydraws[i + j + 1][1].split()
+                lastround = historydraws[i + step + j + 1][1].split()
                 for rn in currentdraw[:rednumber]:
                     if rn in lastround[:rednumber]:
                         rrepeate += 1
@@ -250,19 +262,24 @@ class DataAnalyze(object):
                         if norepeat:
                             currentdraw[rednumber:].remove(bn)
             try:
-                repeat_rate['r' + str(rrepeate)] += 1
+                if self.MAXREDBALL > 0:
+                    repeat_rate['r' + str(rrepeate)] += 1
             except KeyError:
                 repeat_rate['r' + str(rrepeate)] = 1
             try:
-                repeat_rate['b' + str(brepeate)] += 1
+                if self.MAXBLUEBALL > 0:
+                    repeat_rate['b' + str(brepeate)] += 1
             except KeyError:
                 repeat_rate['b' + str(brepeate)] = 1
             i += 1
         return repeat_rate
     
-    def history_get_miss_of_each(self):
+    def history_get_miss_of_each(self, historydraws=None):
         redmiss = []
         bluemiss = []
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
         for rball in range(self.MINREDBALL, self.MAXREDBALL + 1):
             if rball < 10:
                 rball = '0' + str(rball)
@@ -271,7 +288,7 @@ class DataAnalyze(object):
             while True:
                 found = False
                 misstime = 0
-                for adraws in self.drawlist:
+                for adraws in selecteddraws:
                     rballlist = adraws[1].split()[:self.rednumber]
                     if rball in rballlist:
                         found = True
@@ -290,7 +307,7 @@ class DataAnalyze(object):
             while True:
                 found = False
                 misstime = 0
-                for adraws in self.drawlist:
+                for adraws in selecteddraws:
                     bballlist = adraws[1].split()[self.rednumber:]
                     if bball in bballlist:
                         found = True
@@ -301,8 +318,9 @@ class DataAnalyze(object):
                     break
         return [redmiss, bluemiss]
     
-    def history_counts_of_odd_and_even(self,latest=None):
-        historydraws = self.drawlist[:latest]
+    def history_counts_of_odd_and_even(self,historydraws=None):
+        if historydraws == None:
+            historydraws = self.drawlist
         redhistory = {}
         bluehistory = {}
         for i in range(self.rednumber + 1):
@@ -328,6 +346,88 @@ class DataAnalyze(object):
         redhistory.sort(key=lambda ball:ball[1])
         bluehistory.sort(key=lambda ball:ball[1])
         return redhistory, bluehistory
+    
+
+    def history_red_keepcome_counts_of_each(self, historydraws=None,removerepeat=False):
+        keepcomestat = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                keepcomestat['0' + str(i)] = {}
+            else:
+                keepcomestat[str(i)] = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        drawcurpos = 0
+        while True:
+            adraw = selecteddraws[drawcurpos]
+            drawballs = adraw[1].split()[:self.rednumber]
+            for ball in drawballs:
+                drawpos = 1
+                count = 0
+                while True:
+                    if drawpos + drawcurpos < len(selecteddraws):
+                        pastdrawballs = selecteddraws[drawpos + drawcurpos][1].split()[:self.rednumber]
+                    else:
+                        if count > 0:
+                            try:
+                                keepcomestat[ball][count] += 1
+                            except KeyError:
+                                keepcomestat[ball][count] = 1                            
+                        break
+                    if ball in pastdrawballs:
+                        count += 1
+                        drawpos += 1
+                    else:
+                        try:
+                            keepcomestat[ball][count] += 1
+                        except KeyError:
+                            keepcomestat[ball][count] = 1
+                        break
+            drawcurpos += 1
+            if drawcurpos == len(selecteddraws) -2:
+                break
+        return keepcomestat
+    
+    def history_red_recome_counts_of_each(self, historydraws=None,latest=None, norepeat=False):
+        recomestat = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                recomestat['0' + str(i)] = {}
+            else:
+                recomestat[str(i)] = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist[:latest]
+        drawcurpos = 0
+        drawpos = 0
+        while True:
+            adraw = selecteddraws[drawcurpos]
+            drawballs = adraw[1].split()[:self.rednumber]
+            if norepeat == True:
+                drawballs = list(set(drawballs))
+            count = 0
+            done = False
+            for pastdraw in selecteddraws[drawcurpos + 1:]:
+                pastdrawballs = pastdraw[1].split()[:self.rednumber]
+                for ball in drawballs:
+                    if ball in pastdrawballs:
+                        try:
+                            drawballs.remove(ball)
+                            recomestat[ball][count] += 1
+                        except KeyError:
+                            recomestat[ball][count] = 1
+                    if len(drawballs) == 0:
+                        done = True
+                        break
+                if done:
+                    break
+                count +=1
+            drawcurpos += 1
+            if drawcurpos == len(selecteddraws) -2:
+                break
+            
+        return recomestat    
     
     def get_red_and_blue_sum(self, adrawstr):
         redsum = 0
@@ -541,6 +641,32 @@ class DltDataAnalyze(DataAnalyze):
             
         nextdraws = []
         i = 0
+        recomestat = self.history_red_recome_counts_of_each(historydraws)
+        missrate = self.history_get_miss_of_each()
+        redmissrate = missrate[0]
+        bluemissrate = missrate[1]
+        print len(cerbl)
+        for rball in cerbl:
+            try:
+                recome = recomestat[rball][redmissrate[int(rball) - 1]]
+                largertime = 0
+                for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
+                    if rcrball < 10:
+                        rcrball = '0' + str(rcrball)
+                    else:
+                        rcrball = str(rcrball)
+                    if rball == rcrball:
+                        continue
+                    try:
+                        if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
+                            largertime += 1
+                    except KeyError:
+                        pass
+                if largertime >= 4:
+                    cerbl.remove(rball)
+            except KeyError:
+                cerbl.remove(rball)
+        print len(cerbl)
         while len(nextdraws) < rbcombs:
             random.shuffle(cerbl)
             for j in range(len(cerbl) / self.rednumber):
@@ -919,6 +1045,32 @@ class SsqDataAnalyze(DataAnalyze):
                 pass
         random.shuffle(cebbl)
         cebbllen = len(cebbl)
+        recomestat = self.history_red_recome_counts_of_each(historydraws)
+        missrate = self.history_get_miss_of_each()
+        redmissrate = missrate[0]
+        bluemissrate = missrate[1]
+        print len(cerbl)
+        for rball in cerbl:
+            try:
+                recome = recomestat[rball][redmissrate[int(rball) - 1]]
+                largertime = 0
+                for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
+                    if rcrball < 10:
+                        rcrball = '0' + str(rcrball)
+                    else:
+                        rcrball = str(rcrball)
+                    if rball == rcrball:
+                        continue
+                    try:
+                        if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
+                            largertime += 1
+                    except KeyError:
+                        pass
+                if largertime >= 4:
+                    cerbl.remove(rball)
+            except KeyError:
+                cerbl.remove(rball)
+        print len(cerbl)        
         nextdraws = []
         i = 0
         jj = 0
@@ -991,14 +1143,134 @@ class SsqDataAnalyze(DataAnalyze):
         print totalcombs
         return nextdraws        
         
-class ThreeDDataAnalyze(DataAnalyze):
+
+class CombinationDataAnalyze(DataAnalyze):
+    def __init__(self):
+        DataAnalyze.__init__(self)
+    
+    #在处理最后一轮数据可能有bug
+    def history_recome_counts_of_each(self, historydraws=None,latest=None, norepeat=False):
+        recomestat = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                recomestat['0' + str(i)] = {}
+            else:
+                recomestat[str(i)] = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist[:latest]
+        drawcurpos = 0
+        drawpos = 0
+        while True:
+            adraw = selecteddraws[drawcurpos]
+            drawballs = adraw[1].split()
+            if norepeat == True:
+                drawballs = list(set(drawballs))
+            count = 0
+            done = False
+            for pastdraw in selecteddraws[drawcurpos + 1:]:
+                pastdrawballs = pastdraw[1].split()
+                for ball in drawballs:
+                    if ball in pastdrawballs:
+                        try:
+                            drawballs.remove(ball)
+                            recomestat[ball][count] += 1
+                        except KeyError:
+                            recomestat[ball][count] = 1
+                    if len(drawballs) == 0:
+                        done = True
+                        break
+                if done:
+                    break
+                count +=1
+            drawcurpos += 1
+            if drawcurpos == len(selecteddraws) -2:
+                break
+            
+        return recomestat
+    
+    def history_keepcome_counts_of_each(self, historydraws=None,removerepeat=False):
+        keepcomestat = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                keepcomestat['0' + str(i)] = {}
+            else:
+                keepcomestat[str(i)] = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist[:latest]
+        drawcurpos = 0
+        while True:
+            adraw = selecteddraws[drawcurpos]
+            drawballs = adraw[1].split()
+            for ball in drawballs:
+                drawpos = 1
+                count = 0
+                while True:
+                    if drawpos + drawcurpos < len(selecteddraws):
+                        pastdrawballs = selecteddraws[drawpos + drawcurpos][1].split()
+                    else:
+                        if count > 0:
+                            try:
+                                keepcomestat[ball][count] += 1
+                            except KeyError:
+                                keepcomestat[ball][count] = 1                            
+                        break
+                    if ball in pastdrawballs:
+                        count += 1
+                        drawpos += 1
+                    else:
+                        try:
+                            keepcomestat[ball][count] += 1
+                        except KeyError:
+                            keepcomestat[ball][count] = 1
+                        break
+            drawcurpos += 1
+            if drawcurpos == len(selecteddraws) -2:
+                break
+        #remove the repeated count
+        #remove repeated 的算法有问题，要进一步分析和确认
+        if removerepeat == True:
+            keys = keepcomestat.keys()
+            for key in keys:
+                subkeys = keepcomestat[key].keys()
+                if len(subkeys) <= 2:
+                    continue            
+                subkeys.sort()
+                subkeys.reverse()
+                for i in range(len(subkeys)-1):
+                    keepcomestat[key][subkeys[i + 1]] -= keepcomestat[key][subkeys[i]]
+            
+        return keepcomestat
+    
+    def history_consecutive_win_of_draw(self, historydraws=None, latest=None):
+        constat = {}
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist[:latest]
+        adraw = selecteddraws[0]
+        drawballs = adraw[1].split()
+        for ball in drawballs:
+            constat[ball] = 0
+        for ball in drawballs:
+            drawpos = 1
+            while True:
+                pastdrawballs = selecteddraws[drawpos][1].split()
+                if ball in pastdrawballs:
+                    drawpos += 1
+                    constat[ball] += 1
+                else:
+                    break
+        return constat    
+
+class ThreeDDataAnalyze(CombinationDataAnalyze):
     MINBLUEBALL=0
     MAXBLUEBALL=0
     MINREDBALL=0
     MAXREDBALL=9
     
     def __init__(self):
-        DataAnalyze.__init__(self)
+        CombinationDataAnalyze.__init__(self)
         self.kind = DataFetcher.TYPE3D
         self.rednumber = 3
         self.bluenumber = 0
@@ -1006,7 +1278,7 @@ class ThreeDDataAnalyze(DataAnalyze):
     
     def history_counts_of_seqtype(self, latest=None):
         """
-        计算在历史中的各种重复类型和肥重复类型的计数
+        计算在历史中的各种重复类型和非重复类型的计数
         """
         selecteddraws = self.drawlist[:latest]
         seqtype = {}
@@ -1025,7 +1297,319 @@ class ThreeDDataAnalyze(DataAnalyze):
                 seqtype['r' + str(repeatrate)] = 1
         
         return seqtype
+    
+
+class P3DataAnalyze(ThreeDDataAnalyze):
+    def __init__(self, dataurl=None, updatedata=False):
+        DataAnalyze.__init__(self)
+        self.kind = DataFetcher.TYPEP3
+        self.rednumber = 3
+        self.bluenumber = 0
+        self._dataurl = dataurl
+        self._updatedata = updatedata
+        self._gen_data_list()
+    
+    def _gen_data_list(self):
+        import urllib2
+        if (self._updatedata == True) and (self._dataurl != None):
+            try:
+                f = urllib2.urlopen(self._dataurl)
+                datalines = f.readlines()
+                datas = []
+                index = len(datalines) - 1
+                while index >= 0:
+                    dataline = datalines[index]
+                    if dataline.strip() == 0:
+                        index -= 1
+                        continue
+                    dataelements = dataline.split()
+                    dataline = dataelements[1] + \
+                        '(' + dataelements[0] + ')' + ' ' +\
+                        '0' + dataelements[2] + ' ' + \
+                        '0' + dataelements[3] + ' ' + \
+                        '0' + dataelements[4] + '\n'
+                    datas.append(dataline)
+                    index -= 1
+                drawdatafile = open(P3DRAWDATA, 'w')
+                drawdatafile.writelines(datas)
+                drawdatafile.close()
+            except:
+                pass
+        drawdatafile = open(P3DRAWDATA, 'rb')
+        drawlines = drawdatafile.readlines()
+        del drawlines[0]
+        self.drawlist = []
+        for drawline in drawlines:
+            if drawline.strip() == '':
+                continue
+            [drawno, drawdata] = drawline.split(None, 1)
+            self.drawlist.append([drawno, drawdata.rstrip()])  
+          
+
+class ESTDataAnalyze(CombinationDataAnalyze):
+    MINBLUEBALL=0
+    MAXBLUEBALL=0
+    MINREDBALL=1
+    MAXREDBALL=11    
+    def __init__(self, dataurl=None, updatedata = False):
+        CombinationDataAnalyze.__init__(self)
+        self.kind = DataFetcher.TYPEEST
+        self.rednumber = 5
+        self.bluenumber = 0
+        self._dataurl = dataurl
+        self._updatedata = updatedata
+        self._gen_data_list()    
+    
+    def _gen_data_list(self):
+        import urllib2
+        if (self._updatedata == True) and (self._dataurl != None):
+            try:
+                f = urllib2.urlopen(self._dataurl)
+                data = f.read()
+                drawdatafile = open(ESTDRAWDATA, 'w')
+                drawdatafile.write(data.replace(',',' '))
+                drawdatafile.close()
+            except:
+                pass
+        drawdatafile = open(ESTDRAWDATA, 'rb')
+        drawlines = drawdatafile.readlines()
+        del drawlines[0]
+        self.drawlist = []
+        for drawline in drawlines:
+            if drawline.strip() == '':
+                continue
+            [drawno, drawdata] = drawline.split(None, 1)
+            self.drawlist.append([drawno, drawdata.rstrip()])  
+            
+    def history_pos1_counts_of_each(self, historydraws=None):
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        eachpos1 = {}
+        for draw in selecteddraws:
+            try:
+                eachpos1[draw[1][:2]] += 1
+            except:
+                eachpos1[draw[1][0:2]] = 1
+        return eachpos1
+    
+    def history_memory_analyze_smallest(self, historydraws=None):
+        memoryrec = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                memoryrec['0' + str(i)] = {}
+            else:
+                memoryrec[str(i)] = {}        
+        selecteddraws = historydraws
+        preponinter = 1
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
         
+        for i in range(len(selecteddraws)-1):
+            balls = selecteddraws[i][1].split()
+            preballs = selecteddraws[i+1][1].split()
+            for ball in balls:
+                for preball in preballs:
+                    try:
+                        memoryrec[ball][preball] += 1
+                    except KeyError:
+                        memoryrec[ball][preball] =1
+        
+        keys = memoryrec.keys()
+        keys.sort()
+        smalllist = []
+        secsmalllist = []
+        for subkey in keys:
+            smallest = keys[0]
+            for key in keys:
+                if memoryrec[key][subkey] < memoryrec[smallest][subkey]:
+                    smallest = key
+            smalllist.append(smallest)
+        for tempkey in keys:
+            if tempkey not in smalllist:
+                break
+        for subkey in keys:
+            secsmallest = tempkey
+            for key in keys:
+                if key == smalllist[int(subkey) - 1]:
+                    continue
+                if memoryrec[key][subkey] < memoryrec[secsmallest][subkey]:
+                    secsmallest = key
+            secsmalllist.append(secsmallest)
+        return smalllist, secsmalllist
+            
+        
+    def history_memory_analyze_biggest(self, historydraws=None):
+        memoryrec = {}
+        for i in range(self.MINREDBALL, self.MAXREDBALL + 1):
+            if i < 10:
+                memoryrec['0' + str(i)] = {}
+            else:
+                memoryrec[str(i)] = {}        
+        selecteddraws = historydraws
+        preponinter = 1
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        
+        for i in range(len(selecteddraws)-1):
+            balls = selecteddraws[i][1].split()
+            preballs = selecteddraws[i+1][1].split()
+            for ball in balls:
+                for preball in preballs:
+                    try:
+                        memoryrec[ball][preball] += 1
+                    except KeyError:
+                        memoryrec[ball][preball] =1
+        
+        keys = memoryrec.keys()
+        keys.sort()
+        biglist = []
+        secbiglist = []
+        for subkey in keys:
+            biggest = keys[0]
+            for key in keys:
+                try:
+                    if memoryrec[key][subkey] > memoryrec[biggest][subkey]:
+                        biggest = key
+                except Exception as err:
+                    print err
+            biglist.append(biggest)
+        for tempkey in keys:
+            if tempkey not in biglist:
+                break
+        for subkey in keys:
+            secbiggest = tempkey
+            for key in keys:
+                if key == biglist[int(subkey) - 1]:
+                    continue
+                try:
+                    if memoryrec[key][subkey] > memoryrec[secbiggest][subkey]:
+                        secbiggest = key
+                except Exception as err:
+                    print err
+            secbiglist.append(secbiggest)
+        return biglist, secbiglist    
+    
+    def exclude_on_memmory_smallest(self, historydraws=None):
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        smallest, secsmallest = self.history_memory_analyze_smallest(historydraws)
+        excludedballs = []
+        secexcludedballs = []
+        for ball in selecteddraws[0][1].split():
+            excludedballs.append(smallest[int(ball) - 1])
+            secexcludedballs.append(secsmallest[int(ball) - 1])
+        return excludedballs, secexcludedballs
+        
+    def exclude_on_memmory_biggest(self, historydraws=None):
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        biggest, secbiglist = self.history_memory_analyze_biggest(historydraws)
+        excludedballs = []
+        secexcludedballs = []
+        for ball in selecteddraws[0][1].split():
+            excludedballs.append(biggest[int(ball) - 1])
+            secexcludedballs.append(secbiglist[int(ball) - 1])
+        return excludedballs, secexcludedballs    
+    
+
+    def history_max_and_min_of_everyday(self,historydraws=None):
+        selecteddraws = historydraws
+        if selecteddraws == None:
+            selecteddraws = self.drawlist
+        selecteddraws.sort(key=lambda k:k[0],reverse=True)
+        startday = datetime.datetime.strptime(selecteddraws[0][0][:8],'%Y%m%d')
+        oneday = datetime.timedelta(1)
+        onedaydraws = []
+        everydayresult = {}
+        for adraw in historydraw:
+            if adraw[0][:8] == startday.strftime('%Y%m%d'):
+                onedaydraws.append(adraw)
+            else:
+                if len(onedaydraws) == 84:
+                    everydayresult[startday.strftime('%Y%m%d')] = \
+                        self.history_counts_of_each(onedaydraws)
+                startday -= oneday
+                onedaydraws=[]
+                onedaydraws.append(adraw)
+        everydayresult[startday.strftime('%Y%m%d')] = \
+            self.history_counts_of_each(onedaydraws)
+        #everydaykeys = everydayresult.keys()
+        #everydaykeys.sort()
+        #for everydaykey in everydaykeys:
+            #eachcount = everydayresult[everydaykey].items()
+            #print everydaykey,
+            #print max(eachcount, key=lambda k:k[1]),
+            #print min(eachcount, key=lambda k:k[1])
+        return everydayresult 
+    
+    def history_balls_in_max_and_min(self, historydraws=None):
+        if historydraws == None:
+            historydraws = self.drawlist
+        everydayresult = self.history_max_and_min_of_everyday(historydraws)
+        everydaykeys = everydayresult.keys()
+        everydaykeys.sort()
+        maxminresult = {}
+        for everydaykey in everydaykeys:
+            eachcount = everydayresult[everydaykey].items()
+            maxminresult[everydaykey] = (max(eachcount, key=lambda k:k[1]),
+                                         min(eachcount, key=lambda k:k[1]))
+        
+        maxminstat = {'max':{}, 'min':{}}
+        eachmaxmin = {}
+        for i in range(1,12):
+            if i < 10:
+                i = 'r0' + str(i)
+            else:
+                i = 'r' + str(i)
+            eachmaxmin[i] = {'max':0, 'min':0}
+        for everydaykey in everydaykeys:
+            try:
+                eachmaxmin[maxminresult[everydaykey][0][0]]['max'] +=1
+                if maxminresult[everydaykey][0][0] not in maxminstat['max'][maxminresult[everydaykey][0][1]]:
+                    maxminstat['max'][maxminresult[everydaykey][0][1]].append(\
+                        maxminresult[everydaykey][0][0])
+            except KeyError:
+                maxminstat['max'][maxminresult[everydaykey][0][1]] = \
+                    [maxminresult[everydaykey][0][0]]
+            try:
+                eachmaxmin[maxminresult[everydaykey][1][0]]['min'] +=1
+                if maxminresult[everydaykey][1][0] not in maxminstat['min'][maxminresult[everydaykey][1][1]]:
+                    maxminstat['min'][maxminresult[everydaykey][1][1]].append(\
+                        maxminresult[everydaykey][1][0])
+            except KeyError:
+                maxminstat['min'][maxminresult[everydaykey][1][1]] = \
+                    [maxminresult[everydaykey][1][0]]
+        return maxminstat
+    
+    def history_max_and_min_total_for_balls(self, historydraws=None):
+        if historydraws == None:
+            historydraws = self.drawlist
+        everydayresult = est.history_max_and_min_of_everyday(historydraw)
+        everydaykeys = everydayresult.keys()
+        everydaykeys.sort()
+        maxminresult = {}
+        for everydaykey in everydaykeys:
+            eachcount = everydayresult[everydaykey].items()
+            maxminresult[everydaykey] = (max(eachcount, key=lambda k:k[1]),
+                                         min(eachcount, key=lambda k:k[1]))
+        
+        maxtotal = {}
+        mintotal = {}
+        
+        for everydaykey in everydaykeys:
+            try:
+                maxtotal[maxminresult[everydaykey][0][1]] += 1
+            except KeyError:
+                maxtotal[maxminresult[everydaykey][0][1]] = 1
+            try:
+                mintotal[maxminresult[everydaykey][1][1]] += 1
+            except KeyError:
+                mintotal[maxminresult[everydaykey][1][1]] = 1
+        
+        return maxtotal, mintotal
         
 def next_lottery_draw(kind, num=1):
     lotterygenerator = None
@@ -1068,34 +1652,8 @@ def next_lottery_draw_rarest(kind, start=0, end=None):
     print sorted(bluebs, key=lambda ball:ball[0])
 
 if __name__ == '__main__':
-    #ssq = SsqDataAnalyze()
-    #draws = ssq.my03_get_next_draw(latest=200)
-    #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:200])
-    #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:200])
-    #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:200])
-    #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:200])
-    #print ssq.history_repeat_rate(1,historydraws=ssq.drawlist[:100])
-    #print ssq.history_repeat_rate(2,historydraws=ssq.drawlist[:100])
-    #print ssq.history_repeat_rate(3,historydraws=ssq.drawlist[:100])
-    #print ssq.history_repeat_rate(4,historydraws=ssq.drawlist[:100])
-    #for draw in draws:
-        #r1,b1= draw.rsplit(None,1)
-        #print r1 + '+' + b1
+    est = ESTDataAnalyze()
+    historydraw = est.drawlist[:84*111]
+    maxtotal, mintotal = est.history_max_and_min_total_for_balls(historydraw)
+    print maxtotal, mintotal
     
-    threed = ThreeDDataAnalyze()
-    print threed.history_counts_of_seqtype()
-    print threed.history_counts_of_seqtype(latest=600)
-    print threed.history_counts_of_seqtype(latest=300)
-    print threed.history_counts_of_seqtype(latest=200)
-    print threed.history_counts_of_seqtype(latest=100)
-    eachcount = threed.history_counts_of_each(latest=100).items()
-    eachcount.sort(key=lambda ball:ball[1])
-    print eachcount
-    eachcount = threed.history_counts_of_each(latest=200).items()
-    eachcount.sort(key=lambda ball:ball[1])
-    print eachcount    
-    print threed.history_repeat_rate(1,threed.drawlist[:100])
-    print threed.history_repeat_rate(1,threed.drawlist[:100],True)
-    print threed.history_repeat_rate(2,threed.drawlist[:100])
-    print threed.history_repeat_rate(2,threed.drawlist[:100],True)
-    print threed.history_get_miss_of_each()
