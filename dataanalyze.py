@@ -12,6 +12,7 @@
 
 """
 import datetime
+from math import ceil as ceil
 import os
 import random
 import time
@@ -645,27 +646,27 @@ class DltDataAnalyze(DataAnalyze):
         missrate = self.history_get_miss_of_each()
         redmissrate = missrate[0]
         bluemissrate = missrate[1]
-        print len(cerbl)
-        for rball in cerbl:
-            try:
-                recome = recomestat[rball][redmissrate[int(rball) - 1]]
-                largertime = 0
-                for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
-                    if rcrball < 10:
-                        rcrball = '0' + str(rcrball)
-                    else:
-                        rcrball = str(rcrball)
-                    if rball == rcrball:
-                        continue
-                    try:
-                        if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
-                            largertime += 1
-                    except KeyError:
-                        pass
-                if largertime >= 4:
-                    cerbl.remove(rball)
-            except KeyError:
-                cerbl.remove(rball)
+        #print len(cerbl)
+        #for rball in cerbl:
+            #try:
+                #recome = recomestat[rball][redmissrate[int(rball) - 1]]
+                #largertime = 0
+                #for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
+                    #if rcrball < 10:
+                        #rcrball = '0' + str(rcrball)
+                    #else:
+                        #rcrball = str(rcrball)
+                    #if rball == rcrball:
+                        #continue
+                    #try:
+                        #if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
+                            #largertime += 1
+                    #except KeyError:
+                        #pass
+                #if largertime >= 4:
+                    #cerbl.remove(rball)
+            #except KeyError:
+                #cerbl.remove(rball)
         print len(cerbl)
         while len(nextdraws) < rbcombs:
             random.shuffle(cerbl)
@@ -990,7 +991,7 @@ class SsqDataAnalyze(DataAnalyze):
             if key[0] == 'r':
                 if eachcount[key] <= redthreshold:
                     eachcount.pop(key)
-        erbl, ebbl = self._get_exclude_ball(historydraws,4)
+        erbl, ebbl = self._get_exclude_ball(historydraws,3)
         erbl, delebbl = self._get_exclude_ball(historydraws,1)
         del delebbl
         for ebb in ebbl:
@@ -1050,26 +1051,26 @@ class SsqDataAnalyze(DataAnalyze):
         redmissrate = missrate[0]
         bluemissrate = missrate[1]
         print len(cerbl)
-        for rball in cerbl:
-            try:
-                recome = recomestat[rball][redmissrate[int(rball) - 1]]
-                largertime = 0
-                for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
-                    if rcrball < 10:
-                        rcrball = '0' + str(rcrball)
-                    else:
-                        rcrball = str(rcrball)
-                    if rball == rcrball:
-                        continue
-                    try:
-                        if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
-                            largertime += 1
-                    except KeyError:
-                        pass
-                if largertime >= 4:
-                    cerbl.remove(rball)
-            except KeyError:
-                cerbl.remove(rball)
+        #for rball in cerbl:
+            #try:
+                #recome = recomestat[rball][redmissrate[int(rball) - 1]]
+                #largertime = 0
+                #for rcrball in range(self.MINREDBALL, self.MAXREDBALL + 1):
+                    #if rcrball < 10:
+                        #rcrball = '0' + str(rcrball)
+                    #else:
+                        #rcrball = str(rcrball)
+                    #if rball == rcrball:
+                        #continue
+                    #try:
+                        #if recomestat[rcrball][redmissrate[int(rball) - 1]] > recome:
+                            #largertime += 1
+                    #except KeyError:
+                        #pass
+                #if largertime >= 4:
+                    #cerbl.remove(rball)
+            #except KeyError:
+                #cerbl.remove(rball)
         print len(cerbl)        
         nextdraws = []
         i = 0
@@ -1078,7 +1079,7 @@ class SsqDataAnalyze(DataAnalyze):
         b = len(cebbl)
         totalcombs = (a * (a-1) * (a-2) * (a-3) / (4 * 3 * 2 *1)) * len(er2bcombl) * b
         print totalcombs
-        while len(nextdraws) < len(er2bcombl):
+        while len(nextdraws) < int(ceil(len(er2bcombl) * 0.65)):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber - 2)):
                 rnextdraw = cerbl[((self.rednumber - 2) * j) : ((self.rednumber - 2) * ( j + 1))]
@@ -1095,12 +1096,12 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == len(er2bcombl):
+                if len(nextdraws) == int(ceil(len(er2bcombl) * 0.65)):
                     break
         i = 0
         totalcombs += (a * (a-1) * (a-2) * (a-3) * (a-4) / (5*4*3*2*1)) * len(erbl) * b
         print totalcombs
-        while len(nextdraws) < 3*len(er2bcombl):
+        while len(nextdraws) < int(ceil(len(er2bcombl) * 1.65)):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber - 1)):
                 rnextdraw = cerbl[((self.rednumber - 1) * j) : ((self.rednumber - 1) * ( j + 1))]
@@ -1117,12 +1118,12 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == 3*len(er2bcombl):
+                if len(nextdraws) == int(ceil(len(er2bcombl) * 1.65)):
                     break
                 
         totalcombs += (a*(a-1)*(a-2)*(a-3)*(a-4)*(a-5)/ (6*5*4*3*2*1)) * b
         i = 0
-        while len(nextdraws) < 4*len(er2bcombl):
+        while len(nextdraws) < int(ceil(len(er2bcombl) * 2.30)):
             random.shuffle(cerbl)
             for j in range(len(cerbl) / (self.rednumber)):
                 rnextdraw = cerbl[(self.rednumber * j) : (self.rednumber * ( j + 1))]
@@ -1138,7 +1139,7 @@ class SsqDataAnalyze(DataAnalyze):
                 if jj >= len(cebbl):
                     jj = 0
                     random.shuffle(cebbl)                
-                if len(nextdraws) == 4*len(er2bcombl):
+                if len(nextdraws) == int(ceil(len(er2bcombl) * 2.30)):
                     break
         print totalcombs
         return nextdraws        
