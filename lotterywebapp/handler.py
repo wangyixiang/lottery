@@ -59,7 +59,7 @@ class APIHandler(BaseHandler):
             self.set_header("Content-Type", "application/json; charset=UTF-8")
             super(APIHandler, self).finish(chunk)
             
-    def write_error(self, status_code, **kwars):
+    def write_error(self, status_code, **kwargs):
         debug = self.settings.get("debug", False)
         try:
             exc_info = kwars.pop("exc_info")
@@ -84,6 +84,9 @@ class APIHandler(BaseHandler):
             self.set_status(200)
             self.set_header("Content-Type", "application/json; charset=UTF-8")
             self.finish(str(e))
+        except Exception:
+            logging.error(traceback.format_exc())
+            return super(APIHandler, self).write_error(status_code, **kwargs)
     
     def _send_error_email(self, exception):
         try:

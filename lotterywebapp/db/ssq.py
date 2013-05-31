@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import sys
 import os
+from tornado.escape import to_unicode 
 
 _dir = os.path.dirname(os.path.abspath(__file__))
 _root = os.path.join(_dir, "..")
@@ -18,12 +19,13 @@ class SsqModel(Model):
         drawnum,drawdate,
         redball1, redball2, redball3, redball4, redball5, redball6,
         blueball1
-        from ssqdata where date='date';""" % date)
+        from ssqdata where drawdate='%s';""" % date)
         if row:
-            draw["draw"]["drawnum"] = ""
-            draw["draw"]["drawdate"] = ""
-            draw["draw"]["redball"] = ""
-            draw["draw"]["blueball"] = ""
+            draw["draw"]["drawnum"] = row[0]["drawnum"]
+            draw["draw"]["drawdate"] = to_unicode(str(row[0]["drawdate"]))
+            redballs = [ row[0]["redball%s"% n] for n in range(1,7)]
+            draw["draw"]["redball"] = u" ".join(redballs)
+            draw["draw"]["blueball"] = row[0]["blueball1"]
             return draw
         else:
             return {}

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import platform
 #lottery web app setting :)
 
 if platform.node() == 'wangyixiang':
@@ -10,20 +10,23 @@ else:
 
 port = 3270
 
+app_get_to_post = True
 dlt_server_draws_url = ""
+ssq_server_draws_url = ""
+login_url = ""
 cookie_secret = ""
 xsrf_cookies = False
 
 mysql = {
-    "host": "ubuntu",
+    "host": "localhost",
     "port": "3306",
-    "database": "lottery",
+    "database": "lotterydata",
     "user": "root",
     "password": "123456"
 }
 
 smtp = {
-    "host": "ubuntu",
+    "host": "localhost",
     "user": "",
     "password": "",
     "duration": 30,

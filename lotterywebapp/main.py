@@ -10,14 +10,18 @@ from tornado.httpserver import HTTPServer
 from tornado.options import options
 from tornado.database import Connection
 
-from lotterywebapp.libs.options import parse_options
+try:
+    from lotterywebapp.libs.options import parse_options
+except ImportError:
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..')))
+    from lotterywebapp.libs.options import parse_options
 
 class Application(web.Application):
     def __init__(self):
         from lotterywebapp.urls import handlers, ui_modules
         from lotterywebapp.db import Model
         
-        setting = dict(debug=options.debug,
+        settings = dict(debug=options.debug,
                        template_path=os.path.join(os.path.dirname(__file__), "templates"),
                        static_path=os.path.join(os.path.dirname(__file__), "static"),
                        login_url=options.login_url,

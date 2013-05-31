@@ -21,14 +21,14 @@ def parse_options():
     _settings_local = os.path.join(_root, "setting_local.py")
     
     try:
-        parse_config_file(_setting)
+        parse_config_file(_settings)
     except Exception, e:
-        logging.error("loading setting failed! Exception: %s" % e)
+        logging.error("loading settings failed! Exception: %s" % e)
     
     try:
-        parse_config_file(_setting_local)
+        parse_config_file(_settings_local)
     except Exception, e:
-        logging.error("loading local setting failed! Exception: %s" % e)
+        logging.error("loading local settings failed! Exception: %s" % e)
         
     parse_command_line()
     
